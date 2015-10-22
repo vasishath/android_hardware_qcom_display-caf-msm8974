@@ -44,6 +44,11 @@ inline int32_t getVfmDataIdx(int32_t type){
     }
     return indx;
 }
+enum ColorSpace_t{
+    ITU_R_601,
+    ITU_R_601_FR,
+    ITU_R_709,
+};
 
 struct HSICData_t {
     int32_t hue;
@@ -78,15 +83,16 @@ struct VfmData_t {
 struct MetaData_t {
     int32_t operation;
     int32_t interlaced;
-    BufferDim_t bufferDim;
-    HSICData_t hsicData;
+    struct BufferDim_t bufferDim;
+    struct HSICData_t hsicData;
     int32_t sharpness;
     int32_t video_interface;
-    IGCData_t igcData;
-    Sharp2Data_t Sharp2Data;
+    struct IGCData_t igcData;
+    struct Sharp2Data_t Sharp2Data;
     int64_t timestamp;
     int32_t vfmDataBitMap;
-    VfmData_t vfmData[MAX_VFM_DATA_COUNT];
+    struct VfmData_t vfmData[MAX_VFM_DATA_COUNT];
+    uint32_t refreshrate;
 };
 
 typedef enum {
@@ -99,6 +105,7 @@ typedef enum {
     PP_PARAM_TIMESTAMP  = 0x0040,
     UPDATE_BUFFER_GEOMETRY = 0x0080,
     PP_PARAM_VFM_DATA   = 0x0100,
+    UPDATE_REFRESH_RATE = 0x0200,
 } DispParamType;
 
 int setMetaData(private_handle_t *handle, DispParamType paramType, void *param);

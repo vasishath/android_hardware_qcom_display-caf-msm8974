@@ -7,6 +7,7 @@ common_includes += hardware/qcom/display-caf-bfam/libhwcomposer
 common_includes += hardware/qcom/display-caf-bfam/libexternal
 common_includes += hardware/qcom/display-caf-bfam/libqservice
 common_includes += hardware/qcom/display-caf-bfam/libvirtual
+common_includes += hardware/qcom/display-caf-bfam/libhdmi
 
 ifeq ($(TARGET_USES_POST_PROCESSING),true)
     common_flags     += -DUSES_POST_PROCESSING
@@ -44,7 +45,8 @@ kernel_includes :=
 # Executed only on QCOM BSPs
 ifeq ($(TARGET_USES_QCOM_BSP),true)
 # Enable QCOM Display features
-    common_flags += -DQCOM_BSP
+    common_flags += -DQTI_BSP
+    common_includes += vendor/qcom/opensource/display-frameworks/include
 endif
 ifneq ($(call is-platform-sdk-version-at-least,18),true)
     common_flags += -DANDROID_JELLYBEAN_MR1=1

@@ -42,6 +42,10 @@
 // Max number of PTOR layers handled
 #define MAX_PTOR_LAYERS 2
 
+#ifdef QTI_BSP
+#include <exhwcomposer_defs.h>
+#endif
+
 //Fwrd decls
 struct hwc_context_t;
 
@@ -56,7 +60,7 @@ class RotMgr;
 namespace qhwc {
 //fwrd decl
 class QueuedBufferStore;
-class ExternalDisplay;
+class HDMIDisplay;
 class VirtualDisplay;
 class IFBUpdate;
 class IVideoOverlay;
@@ -75,6 +79,8 @@ struct MDPInfo {
 };
 
 struct DisplayAttributes {
+    uint32_t refreshRate;
+    uint32_t dynRefreshRate;
     uint32_t vsync_period; //nanos
     uint32_t xres;
     uint32_t yres;
@@ -124,6 +130,8 @@ struct ListStats {
     hwc_rect_t rRoi;  //right ROI. Unused in single DSI panels.
     //App Buffer Composition index
     int  renderBufIndexforABC;
+    //dyn refresh rate-Client requested refreshrate
+    uint32_t refreshRateRequest;
 };
 
 //PTOR Comp info
@@ -261,6 +269,10 @@ bool isGLESOnlyComp(hwc_context_t *ctx, const int& dpy);
 void reset_layer_prop(hwc_context_t* ctx, int dpy, int numAppLayers);
 void dumpBuffer(private_handle_t *ohnd, char *bufferName);
 bool isAbcInUse(hwc_context_t *ctx);
+void updateDisplayInfo(hwc_context_t* ctx, int dpy);
+void resetDisplayInfo(hwc_context_t* ctx, int dpy);
+void initCompositionResources(hwc_context_t* ctx, int dpy);
+void destroyCompositionResources(hwc_context_t* ctx, int dpy);
 
 //Helper function to dump logs
 void dumpsys_log(android::String8& buf, const char* fmt, ...);
@@ -276,6 +288,11 @@ void optimizeLayerRects(hwc_context_t *ctx,
 bool areLayersIntersecting(const hwc_layer_1_t* layer1,
         const hwc_layer_1_t* layer2);
 bool operator ==(const hwc_rect_t& lhs, const hwc_rect_t& rhs);
+bool layerUpdating(const hwc_layer_1_t* layer);
+/* Calculates the dirtyRegion for the given layer */
+hwc_rect_t calculateDirtyRect(const hwc_layer_1_t* layer,
+                                       hwc_rect_t& scissor);
+
 
 // returns true if Action safe dimensions are set and target supports Actionsafe
 bool isActionSafePresent(hwc_context_t *ctx, int dpy);
@@ -285,6 +302,10 @@ void getActionSafePosition(hwc_context_t *ctx, int dpy, hwc_rect_t& dst);
 
 void getAspectRatioPosition(hwc_context_t* ctx, int dpy, int extOrientation,
                                 hwc_rect_t& inRect, hwc_rect_t& outRect);
+
+uint32_t roundOff(uint32_t refreshRate);
+
+void setRefreshRate(hwc_context_t *ctx, int dpy, uint32_t refreshRate);
 
 bool isPrimaryPortrait(hwc_context_t *ctx);
 
@@ -376,6 +397,8 @@ bool isDisplaySplit(hwc_context_t* ctx, int dpy);
 // Set the GPU hint to default if the current composition type is GPU
 // due to idle fallback or MDP composition.
 void setGPUHint(hwc_context_t* ctx, hwc_display_contents_1_t* list);
+
+bool loadEglLib(hwc_context_t* ctx);
 
 // Returns true if rect1 is peripheral to rect2, false otherwise.
 bool isPeripheral(const hwc_rect_t& rect1, const hwc_rect_t& rect2);
@@ -500,8 +523,9 @@ struct hwc_context_t {
 
     //Primary and external FB updater
     qhwc::IFBUpdate *mFBUpdate[HWC_NUM_DISPLAY_TYPES];
-    // External display related information
-    qhwc::ExternalDisplay *mExtDisplay;
+    // HDMI display related object. Used to configure/teardown
+    // HDMI when it is connected as primary or external.
+    qhwc::HDMIDisplay *mHDMIDisplay;
     qhwc::VirtualDisplay *mVirtualDisplay;
     qhwc::MDPInfo mMDP;
     qhwc::VsyncState vstate;
@@ -556,10 +580,19 @@ struct hwc_context_t {
     // This can be set via system property
     // persist.hwc.enable_vds
     bool mVDSEnabled;
+#ifdef QTI_BSP
+    void *mEglLib;
+    EGLBoolean (*mpfn_eglGpuPerfHintQCOM)(EGLDisplay, EGLContext, EGLint *);
+    EGLDisplay (*mpfn_eglGetCurrentDisplay)();
+    EGLContext (*mpfn_eglGetCurrentContext)();
     struct gpu_hint_info mGPUHintInfo;
+#endif
     // PTOR Info
     qhwc::PtorInfo mPtorInfo;
     uint32_t mIsPTOREnabled;
+
+    // Provides a way for OEM's to disable setting dynfps via metadata.
+    bool mUseMetaDataRefreshRate;
 
    // Stores the hpd enabled status- avoids re-enabling HDP on suspend resume.
     bool mHPDEnabled;
@@ -587,7 +620,17 @@ inline bool isSecurePresent(hwc_context_t *ctx, int dpy) {
 
 static inline bool isSecondaryConnected(hwc_context_t* ctx) {
     return (ctx->dpyAttr[HWC_DISPLAY_EXTERNAL].connected ||
-    ctx->dpyAttr[HWC_DISPLAY_VIRTUAL].connected);
+            ctx->dpyAttr[HWC_DISPLAY_VIRTUAL].connected);
+}
+
+static inline bool isSecondaryAnimating(hwc_context_t* ctx) {
+    return (ctx->dpyAttr[HWC_DISPLAY_EXTERNAL].connected &&
+            (!ctx->dpyAttr[HWC_DISPLAY_EXTERNAL].isPause) &&
+            ctx->listStats[HWC_DISPLAY_EXTERNAL].isDisplayAnimating)
+            ||
+           (ctx->dpyAttr[HWC_DISPLAY_VIRTUAL].connected &&
+            (!ctx->dpyAttr[HWC_DISPLAY_VIRTUAL].isPause) &&
+            ctx->listStats[HWC_DISPLAY_VIRTUAL].isDisplayAnimating);
 }
 
 static inline bool isSecondaryConfiguring(hwc_context_t* ctx) {
