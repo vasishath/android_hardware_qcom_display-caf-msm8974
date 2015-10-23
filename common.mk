@@ -1,20 +1,20 @@
 #Common headers
-common_includes := hardware/qcom/display-caf-bfam/libgralloc
-common_includes += hardware/qcom/display-caf-bfam/liboverlay
-common_includes += hardware/qcom/display-caf-bfam/libcopybit
-common_includes += hardware/qcom/display-caf-bfam/libqdutils
-common_includes += hardware/qcom/display-caf-bfam/libhwcomposer
-common_includes += hardware/qcom/display-caf-bfam/libexternal
-common_includes += hardware/qcom/display-caf-bfam/libqservice
-common_includes += hardware/qcom/display-caf-bfam/libvirtual
-common_includes += hardware/qcom/display-caf-bfam/libhdmi
+common_includes := hardware/qcom/display-caf-msm8974/libgralloc
+common_includes += hardware/qcom/display-caf-msm8974/liboverlay
+common_includes += hardware/qcom/display-caf-msm8974/libcopybit
+common_includes += hardware/qcom/display-caf-msm8974/libqdutils
+common_includes += hardware/qcom/display-caf-msm8974/libhwcomposer
+common_includes += hardware/qcom/display-caf-msm8974/libexternal
+common_includes += hardware/qcom/display-caf-msm8974/libqservice
+common_includes += hardware/qcom/display-caf-msm8974/libvirtual
+common_includes += hardware/qcom/display-caf-msm8974/libhdmi
 
 ifeq ($(TARGET_USES_POST_PROCESSING),true)
     common_flags     += -DUSES_POST_PROCESSING
     common_includes  += $(TARGET_OUT_HEADERS)/pp/inc
 endif
 
-common_header_export_path := qcom/display-caf-bfam
+common_header_export_path := qcom/display-caf-msm8974
 
 #Common libraries external to display HAL
 common_libs := liblog libutils libcutils libhardware
